@@ -26,8 +26,12 @@ CREATE TABLE IF NOT EXISTS vehicles (
   highway_kwh_per_100mi   NUMERIC(6,2),
 
   -- Electric energy use — metric (kWh per 100 km)
+  -- For PHEVs this column stores EV-mode efficiency (used for the electric portion of driving)
   city_kwh_per_100km      NUMERIC(6,2),
   highway_kwh_per_100km   NUMERIC(6,2),
+
+  -- PHEV battery-only range in km (used with commute distance to split EV vs gas driving)
+  electric_range_km       NUMERIC(6,1),
 
   created_at     TIMESTAMPTZ  DEFAULT NOW()
 );
@@ -136,6 +140,49 @@ VALUES
 (2025,'Hyundai','Tucson','Plug-in Hybrid Limited','phev', 35,33, 6.7,7.1, NULL,NULL,NULL,NULL)
 
 ON CONFLICT (year, make, model, trim) DO NOTHING;
+
+-- ============================================================
+--  Migration: add electric_range_km column and PHEV data
+--  Run this block once in the Supabase SQL Editor if your table
+--  was created before this column existed.
+-- ============================================================
+
+-- Step 1: add the column (safe to re-run — IF NOT EXISTS)
+ALTER TABLE vehicles
+  ADD COLUMN IF NOT EXISTS electric_range_km NUMERIC(6,1);
+
+-- Step 2: fill in 2026 RAV4 Plug-in Hybrid ranges from Toyota spec sheet
+UPDATE vehicles SET electric_range_km = 89
+  WHERE year = 2026 AND make = 'Toyota' AND model = 'RAV4 Plug-in Hybrid' AND trim = 'SE FWD';
+UPDATE vehicles SET electric_range_km = 85
+  WHERE year = 2026 AND make = 'Toyota' AND model = 'RAV4 Plug-in Hybrid' AND trim = 'XSE AWD';
+UPDATE vehicles SET electric_range_km = 79
+  WHERE year = 2026 AND make = 'Toyota' AND model = 'RAV4 Plug-in Hybrid' AND trim = 'GR Sport AWD';
+UPDATE vehicles SET electric_range_km = 89
+  WHERE year = 2026 AND make = 'Toyota' AND model = 'RAV4 Plug-in Hybrid' AND trim = 'XSE Premium AWD';
+
+-- Step 3: EV-mode efficiency for 2026 RAV4 PHEV (stored in city_kwh_per_100km)
+--   Derived from 22.7 kWh battery / ~85 km range ≈ 23 kWh/100 km
+--   Verify against NRCan when official figures are published.
+UPDATE vehicles SET city_kwh_per_100km = 23
+  WHERE year = 2026 AND make = 'Toyota' AND model = 'RAV4 Plug-in Hybrid';
+
+-- Step 4: gas-only fuel economy for 2026 RAV4 PHEV
+--   Toyota has not published separate gas-only city/highway figures for 2026.
+--   Using estimates based on 2025 RAV4 Prime (NRCan: ~7.1–7.8 L/100km city, 6.7–7.4 hwy).
+--   *** Replace these with official NRCan figures when available. ***
+UPDATE vehicles SET city_l100km = 7.1, highway_l100km = 6.7
+  WHERE year = 2026 AND make = 'Toyota' AND model = 'RAV4 Plug-in Hybrid' AND trim = 'SE FWD';
+UPDATE vehicles SET city_l100km = 7.8, highway_l100km = 7.4
+  WHERE year = 2026 AND make = 'Toyota' AND model = 'RAV4 Plug-in Hybrid' AND trim IN ('XSE AWD','GR Sport AWD','XSE Premium AWD');
+
+-- Step 5: fill in 2025 RAV4 Prime electric range (EPA: ~42 miles / 68 km)
+UPDATE vehicles SET electric_range_km = 68, city_kwh_per_100km = 23
+  WHERE year = 2025 AND make = 'Toyota' AND model = 'RAV4 Prime';
+
+-- Step 6: fill in 2025 Hyundai Tucson PHEV electric range (EPA: ~33 miles / 53 km)
+UPDATE vehicles SET electric_range_km = 53, city_kwh_per_100km = 22
+  WHERE year = 2025 AND make = 'Hyundai' AND model = 'Tucson' AND fuel_type = 'phev';
 
 -- ============================================================
 --  How to add more vehicles:

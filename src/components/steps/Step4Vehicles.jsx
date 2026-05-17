@@ -116,6 +116,7 @@ export default function Step4Vehicles({ data, onUpdate, onNext, onBack }) {
         city_l100km: null, highway_l100km: null,
         city_kwh_per_100mi: null, highway_kwh_per_100mi: null,
         city_kwh_per_100km: null, highway_kwh_per_100km: null,
+        electric_range_km: null,
       })
     } else {
       updateVehicle(slotId, dbVehicle)
@@ -159,6 +160,7 @@ export default function Step4Vehicles({ data, onUpdate, onNext, onBack }) {
                       city_l100km: null, highway_l100km: null,
                       city_kwh_per_100mi: null, highway_kwh_per_100mi: null,
                       city_kwh_per_100km: null, highway_kwh_per_100km: null,
+                      electric_range_km: null,
                       price: '', paymentAmount: '', termYears: '5', interestRate: '',
                     })
                     onUpdate({ activeVehicleCount: activeVehicleCount - 1 })
@@ -178,9 +180,12 @@ export default function Step4Vehicles({ data, onUpdate, onNext, onBack }) {
 
             {/* PHEV note */}
             {vehicle.fuel_type === 'phev' && (
-              <div className="mt-3 bg-amber-50 border border-amber-100 rounded-lg p-2.5 text-xs text-amber-800">
-                ⚡ <strong>PHEV:</strong> Fuel cost is calculated using gas-only EPA figures.
-                EV-mode cost estimation coming in a future update.
+              <div className="mt-3 bg-blue-50 border border-blue-100 rounded-lg p-2.5 text-xs text-blue-800">
+                🔌 <strong>Plug-in Hybrid:</strong> Fuel cost is modelled using your commute distance
+                and charging frequency from Step 3.
+                {vehicle.electric_range_km
+                  ? <span> Electric range: <strong>{vehicle.electric_range_km} km</strong>.</span>
+                  : null}
               </div>
             )}
 

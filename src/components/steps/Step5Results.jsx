@@ -147,6 +147,42 @@ export default function Step5Results({ data, onBack, onReset }) {
                     {vehicle.fuel_type === 'diesel' && '🛢️ Diesel'}
                   </span>
                 </div>
+
+                {/* PHEV EV/gas split bar */}
+                {vehicle.fuel_type === 'phev' && s.evFraction != null && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <div className="text-xs font-medium text-gray-600 mb-1.5">
+                      Estimated driving mode split
+                    </div>
+                    {s.evFraction > 0 ? (
+                      <>
+                        <div className="flex rounded-full overflow-hidden h-2 bg-gray-100">
+                          <div
+                            className="bg-green-400 h-2 transition-all"
+                            style={{ width: `${Math.round(s.evFraction * 100)}%` }}
+                          />
+                          <div className="bg-orange-300 h-2 flex-1" />
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span className="text-green-700 font-medium">
+                            ⚡ {Math.round(s.evFraction * 100)}% electric
+                          </span>
+                          <span className="text-orange-600 font-medium">
+                            {Math.round((1 - s.evFraction) * 100)}% gas ⛽
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-400 mt-0.5">
+                          <span>{fmt(s.evCost)}/yr electricity</span>
+                          <span>{fmt(s.gasCost)}/yr fuel</span>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-gray-400">
+                        Enter a daily commute in Step 3 to see your EV/gas split.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )
@@ -156,8 +192,9 @@ export default function Step5Results({ data, onBack, onReset }) {
       {/* Disclaimer */}
       <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs text-gray-500">
         <strong>Assumptions:</strong> Fuel/energy prices held constant over 10 years. Fuel economy
-        figures are posted EPA estimates — real-world use varies. Maintenance, insurance, and
-        depreciation are not included.
+        figures are posted estimates — real-world results vary. For plug-in hybrids, EV usage is
+        estimated from your commute distance and charging frequency; non-commute driving is assumed
+        to run on gasoline. Maintenance, insurance, and depreciation are not included.
       </div>
 
       {/* Actions */}

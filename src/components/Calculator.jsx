@@ -25,6 +25,7 @@ const EMPTY_VEHICLE = (slotId) => ({
   highway_kwh_per_100mi: null,
   city_kwh_per_100km: null,
   highway_kwh_per_100km: null,
+  electric_range_km: null,   // PHEV electric-only range (km)
   // Payment fields
   price: '',
   paymentAmount: '',
@@ -43,6 +44,8 @@ const INITIAL_STATE = {
   cityRatio: 0.55,
   distanceAmount: '',
   distancePeriod: 'week',
+  dailyCommuteKm: '',       // one-way commute in user's unit system (used for PHEV calc)
+  chargingFrequency: 'daily', // how often a PHEV would be charged
   // Step 4
   vehicles: [EMPTY_VEHICLE(0), EMPTY_VEHICLE(1), EMPTY_VEHICLE(2)],
   activeVehicleCount: 1,
