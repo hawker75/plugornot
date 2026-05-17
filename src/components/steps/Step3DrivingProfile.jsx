@@ -31,9 +31,9 @@ export default function Step3DrivingProfile({ data, onUpdate, onNext, onBack }) 
           type="range"
           min={0}
           max={100}
-          value={cityPct}
+          value={100 - cityPct}
           onChange={(e) =>
-            onUpdate({ cityRatio: parseInt(e.target.value) / 100 })
+            onUpdate({ cityRatio: (100 - parseInt(e.target.value)) / 100 })
           }
           className="w-full"
         />
