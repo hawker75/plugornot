@@ -135,7 +135,7 @@ VALUES
 (2025,'Hyundai','Tucson','Plug-in Hybrid SEL', 'phev', 35,33, 6.7,7.1, NULL,NULL,NULL,NULL),
 (2025,'Hyundai','Tucson','Plug-in Hybrid Limited','phev', 35,33, 6.7,7.1, NULL,NULL,NULL,NULL)
 
-ON CONFLICT ON CONSTRAINT vehicles_unique_idx DO NOTHING;
+ON CONFLICT (year, make, model, trim) DO NOTHING;
 
 -- ============================================================
 --  How to add more vehicles:
