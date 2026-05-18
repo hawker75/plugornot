@@ -116,7 +116,7 @@ export default function Step4Vehicles({ data, onUpdate, onNext, onBack }) {
         city_l100km: null, highway_l100km: null,
         city_kwh_per_100mi: null, highway_kwh_per_100mi: null,
         city_kwh_per_100km: null, highway_kwh_per_100km: null,
-        electric_range_km: null,
+        electric_range_km: null, drivetrain: null,
       })
     } else {
       updateVehicle(slotId, dbVehicle)
@@ -145,8 +145,13 @@ export default function Step4Vehicles({ data, onUpdate, onNext, onBack }) {
                   Vehicle {i + 1}
                 </h3>
                 {vehicle.id && (
-                  <span className="text-xs text-gray-500">
-                    — {vehicle.year} {vehicle.make} {vehicle.model} {vehicle.trim}
+                  <span className="text-xs text-gray-500 flex items-center gap-1.5 flex-wrap">
+                    <span>— {vehicle.year} {vehicle.make} {vehicle.model} · {vehicle.trim}</span>
+                    {vehicle.drivetrain && (
+                      <span className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded text-xs font-medium">
+                        {vehicle.drivetrain}
+                      </span>
+                    )}
                   </span>
                 )}
               </div>
@@ -160,7 +165,7 @@ export default function Step4Vehicles({ data, onUpdate, onNext, onBack }) {
                       city_l100km: null, highway_l100km: null,
                       city_kwh_per_100mi: null, highway_kwh_per_100mi: null,
                       city_kwh_per_100km: null, highway_kwh_per_100km: null,
-                      electric_range_km: null,
+                      electric_range_km: null, drivetrain: null,
                       price: '', paymentAmount: '', termYears: '5', interestRate: '',
                     })
                     onUpdate({ activeVehicleCount: activeVehicleCount - 1 })

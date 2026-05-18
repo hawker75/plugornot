@@ -26,6 +26,7 @@ const EMPTY_VEHICLE = (slotId) => ({
   city_kwh_per_100km: null,
   highway_kwh_per_100km: null,
   electric_range_km: null,   // PHEV electric-only range (km)
+  drivetrain: null,          // 'FWD' | 'AWD' | 'RWD' | '4x4'
   // Payment fields
   price: '',
   paymentAmount: '',

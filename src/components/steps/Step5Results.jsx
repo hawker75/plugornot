@@ -83,7 +83,14 @@ export default function Step5Results({ data, onBack, onReset }) {
                   <p className="text-sm font-semibold text-gray-900 mt-0.5 leading-snug">
                     {vehicle.year} {vehicle.make} {vehicle.model}
                   </p>
-                  <p className="text-xs text-gray-400">{vehicle.trim}</p>
+                  <p className="text-xs text-gray-400 flex items-center gap-1.5 flex-wrap">
+                    <span>{vehicle.trim}</span>
+                    {vehicle.drivetrain && (
+                      <span className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">
+                        {vehicle.drivetrain}
+                      </span>
+                    )}
+                  </p>
                 </div>
                 {isBest && (
                   <span className="flex-shrink-0 text-xs font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
