@@ -26,7 +26,7 @@ function SelectBox({ label, value, onChange, options, disabled, placeholder }) {
   )
 }
 
-export default function VehicleSelector({ onVehicleSelect, currentVehicle }) {
+export default function VehicleSelector({ onVehicleSelect, currentVehicle, market = 'CA' }) {
   const [years, setYears] = useState([])
   const [makes, setMakes] = useState([])
   const [models, setModels] = useState([])
@@ -39,80 +39,67 @@ export default function VehicleSelector({ onVehicleSelect, currentVehicle }) {
 
   const [loading, setLoading] = useState(false)
 
-  // Load years on mount
+  // Market filter: show vehicles for this market + global vehicles
+  const marketFilter = (query) => query.in('market', [market, 'GLOBAL'])
+
+  // Load years on mount (re-run when market changes)
   useEffect(() => {
-    supabase
-      .from('vehicles')
-      .select('year')
-      .order('year', { ascending: false })
-      .then(({ data }) => {
-        if (data) {
-          const unique = [...new Set(data.map((r) => r.year))]
-          setYears(unique)
-        }
-      })
-  }, [])
+    setSelectedYear(''); setSelectedMake(''); setSelectedModel(''); setSelectedTrim('')
+    marketFilter(
+      supabase.from('vehicles').select('year').order('year', { ascending: false })
+    ).then(({ data }) => {
+      if (data) setYears([...new Set(data.map((r) => r.year))])
+    })
+  }, [market])
 
   // Load makes when year changes
   useEffect(() => {
     if (!selectedYear) { setMakes([]); setSelectedMake(''); return }
-    supabase
-      .from('vehicles')
-      .select('make')
-      .eq('year', parseInt(selectedYear))
-      .order('make')
-      .then(({ data }) => {
-        if (data) {
-          const unique = [...new Set(data.map((r) => r.make))]
-          setMakes(unique)
-        }
-      })
-  }, [selectedYear])
+    marketFilter(
+      supabase.from('vehicles').select('make').eq('year', parseInt(selectedYear)).order('make')
+    ).then(({ data }) => {
+      if (data) setMakes([...new Set(data.map((r) => r.make))])
+    })
+  }, [selectedYear, market])
 
   // Load models when make changes
   useEffect(() => {
     if (!selectedYear || !selectedMake) { setModels([]); setSelectedModel(''); return }
-    supabase
-      .from('vehicles')
-      .select('model')
-      .eq('year', parseInt(selectedYear))
-      .eq('make', selectedMake)
-      .order('model')
-      .then(({ data }) => {
-        if (data) {
-          const unique = [...new Set(data.map((r) => r.model))]
-          setModels(unique)
-        }
-      })
-  }, [selectedYear, selectedMake])
+    marketFilter(
+      supabase.from('vehicles').select('model')
+        .eq('year', parseInt(selectedYear))
+        .eq('make', selectedMake)
+        .order('model')
+    ).then(({ data }) => {
+      if (data) setModels([...new Set(data.map((r) => r.model))])
+    })
+  }, [selectedYear, selectedMake, market])
 
   // Load trims when model changes
   useEffect(() => {
     if (!selectedYear || !selectedMake || !selectedModel) { setTrims([]); setSelectedTrim(''); return }
-    supabase
-      .from('vehicles')
-      .select('trim')
-      .eq('year', parseInt(selectedYear))
-      .eq('make', selectedMake)
-      .eq('model', selectedModel)
-      .order('trim')
-      .then(({ data }) => {
-        if (data) setTrims(data.map((r) => r.trim))
-      })
-  }, [selectedYear, selectedMake, selectedModel])
+    marketFilter(
+      supabase.from('vehicles').select('trim')
+        .eq('year', parseInt(selectedYear))
+        .eq('make', selectedMake)
+        .eq('model', selectedModel)
+        .order('trim')
+    ).then(({ data }) => {
+      if (data) setTrims(data.map((r) => r.trim))
+    })
+  }, [selectedYear, selectedMake, selectedModel, market])
 
   // When trim is selected, fetch full vehicle row and call parent
   useEffect(() => {
     if (!selectedYear || !selectedMake || !selectedModel || !selectedTrim) return
     setLoading(true)
-    supabase
-      .from('vehicles')
-      .select('*')
-      .eq('year', parseInt(selectedYear))
-      .eq('make', selectedMake)
-      .eq('model', selectedModel)
-      .eq('trim', selectedTrim)
-      .single()
+    marketFilter(
+      supabase.from('vehicles').select('*')
+        .eq('year', parseInt(selectedYear))
+        .eq('make', selectedMake)
+        .eq('model', selectedModel)
+        .eq('trim', selectedTrim)
+    ).single()
       .then(({ data }) => {
         setLoading(false)
         if (data) onVehicleSelect(data)

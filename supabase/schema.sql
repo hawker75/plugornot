@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
   make           VARCHAR(100) NOT NULL,
   model          VARCHAR(100) NOT NULL,
   trim           VARCHAR(200) NOT NULL,
+  market         VARCHAR(10)  NOT NULL DEFAULT 'CA',  -- 'CA' | 'US' | 'GLOBAL'
   drivetrain     VARCHAR(10),           -- 'FWD' | 'AWD' | 'RWD' | '4x4'
   fuel_type      VARCHAR(20)  NOT NULL
                    CHECK (fuel_type IN ('gasoline','diesel','hybrid','phev','electric')),
@@ -38,9 +39,9 @@ CREATE TABLE IF NOT EXISTS vehicles (
   created_at     TIMESTAMPTZ  DEFAULT NOW()
 );
 
--- Prevent duplicate trims
+-- Prevent duplicate trims per market
 CREATE UNIQUE INDEX IF NOT EXISTS vehicles_unique_idx
-  ON vehicles (year, make, model, trim);
+  ON vehicles (year, make, model, trim, market);
 
 -- Speed up the cascading dropdowns
 CREATE INDEX IF NOT EXISTS idx_vehicles_year   ON vehicles (year DESC);
@@ -141,11 +142,50 @@ ON CONFLICT (year, make, model, trim) DO NOTHING;
 --  Safe to re-run — uses IF NOT EXISTS / explicit WHERE clauses
 -- ============================================================
 
--- 1. Add new columns
-ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS drivetrain     VARCHAR(10);
+-- 1. Add new columns (no-ops if they already exist)
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS market            VARCHAR(10) NOT NULL DEFAULT 'CA';
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS drivetrain        VARCHAR(10);
 ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS electric_range_km NUMERIC(6,1);
 
--- 2. Set electric_range_km and EV efficiency FIRST (while old trim names may still exist)
+-- Rebuild unique index to include market
+--   (existing rows all get market='CA' via the DEFAULT above)
+DROP INDEX IF EXISTS vehicles_unique_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS vehicles_unique_idx
+  ON vehicles (year, make, model, trim, market);
+
+-- ─────────────────────────────────────────────────────────────
+-- 2. Upsert 2026 RAV4 Hybrid (all AWD, confirmed from Toyota
+--    Canada 2026 ordering guide page 23)
+--    2026 RAV4 is 100% hybrid — no gasoline-only trims.
+-- ─────────────────────────────────────────────────────────────
+INSERT INTO vehicles
+  (year, make, model, trim, drivetrain, fuel_type,
+   city_mpg, highway_mpg, city_l100km, highway_l100km,
+   city_kwh_per_100mi, highway_kwh_per_100mi,
+   city_kwh_per_100km, highway_kwh_per_100km,
+   electric_range_km)
+VALUES
+  (2026,'Toyota','RAV4 Hybrid','LE',                    'AWD','hybrid', 55,47, 5.1,6.0, NULL,NULL,NULL,NULL, NULL),
+  (2026,'Toyota','RAV4 Hybrid','XLE',                   'AWD','hybrid', 54,46, 5.2,6.1, NULL,NULL,NULL,NULL, NULL),
+  (2026,'Toyota','RAV4 Hybrid','XLE Premium',           'AWD','hybrid', 54,46, 5.2,6.1, NULL,NULL,NULL,NULL, NULL),
+  (2026,'Toyota','RAV4 Hybrid','Woodland',              'AWD','hybrid', 50,42, 5.7,6.7, NULL,NULL,NULL,NULL, NULL),
+  (2026,'Toyota','RAV4 Hybrid','XSE',                   'AWD','hybrid', 52,45, 5.4,6.3, NULL,NULL,NULL,NULL, NULL),
+  (2026,'Toyota','RAV4 Hybrid','XSE Technology Package','AWD','hybrid', 52,45, 5.4,6.3, NULL,NULL,NULL,NULL, NULL),
+  (2026,'Toyota','RAV4 Hybrid','Limited',               'AWD','hybrid', 52,45, 5.4,6.3, NULL,NULL,NULL,NULL, NULL)
+ON CONFLICT (year, make, model, trim, market) DO UPDATE SET
+  drivetrain      = EXCLUDED.drivetrain,
+  fuel_type       = EXCLUDED.fuel_type,
+  city_mpg        = EXCLUDED.city_mpg,
+  highway_mpg     = EXCLUDED.highway_mpg,
+  city_l100km     = EXCLUDED.city_l100km,
+  highway_l100km  = EXCLUDED.highway_l100km;
+
+-- ─────────────────────────────────────────────────────────────
+-- 3. Set electric_range_km and EV efficiency for PHEVs
+--    (do this BEFORE cleaning trim names in case old names exist)
+-- ─────────────────────────────────────────────────────────────
+
+-- 2026 RAV4 PHEV (confirmed from Toyota Canada PHEV ordering guide page 18)
 UPDATE vehicles SET electric_range_km = 89, city_kwh_per_100km = 22
   WHERE year = 2026 AND make = 'Toyota' AND model = 'RAV4 Plug-in Hybrid'
     AND trim IN ('SE','SE FWD','SE AWD');
@@ -159,7 +199,7 @@ UPDATE vehicles SET electric_range_km = 85, city_kwh_per_100km = 22
   WHERE year = 2026 AND make = 'Toyota' AND model = 'RAV4 Plug-in Hybrid'
     AND trim IN ('XSE Technology Package','XSE Premium AWD','XSE Technology Package AWD');
 
--- 2026 RAV4 PHEV gas-only estimates (NRCan 2026 not yet published)
+-- 2026 RAV4 PHEV gas-only L/100km — estimated (NRCan 2026 not yet published)
 UPDATE vehicles SET city_l100km = 7.5, highway_l100km = 7.0
   WHERE year = 2026 AND make = 'Toyota' AND model = 'RAV4 Plug-in Hybrid'
     AND city_l100km IS NULL;

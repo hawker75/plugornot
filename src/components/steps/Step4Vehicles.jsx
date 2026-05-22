@@ -99,7 +99,7 @@ function vehicleIsComplete(vehicle, comparisonType) {
 }
 
 export default function Step4Vehicles({ data, onUpdate, onNext, onBack }) {
-  const { comparisonType, vehicles, activeVehicleCount } = data
+  const { comparisonType, vehicles, activeVehicleCount, market } = data
 
   function updateVehicle(slotId, changes) {
     const updated = vehicles.map((v) =>
@@ -181,6 +181,7 @@ export default function Step4Vehicles({ data, onUpdate, onNext, onBack }) {
             <VehicleSelector
               onVehicleSelect={(v) => handleVehicleSelect(vehicle.slotId, v)}
               currentVehicle={vehicle}
+              market={market}
             />
 
             {/* PHEV note */}

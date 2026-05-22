@@ -38,6 +38,7 @@ const INITIAL_STATE = {
   // Step 1
   comparisonType: null,
   // Step 2
+  market: 'CA',        // 'CA' | 'US' — filters vehicle dropdown to local market
   unitSystem: 'metric',
   fuelPrice: '',
   electricityPrice: '',

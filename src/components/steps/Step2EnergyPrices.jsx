@@ -34,11 +34,22 @@ function Input({ prefix, suffix, ...props }) {
   )
 }
 
+const MARKETS = [
+  { value: 'CA', label: '🇨🇦 Canada',        unitSystem: 'metric'   },
+  { value: 'US', label: '🇺🇸 United States',  unitSystem: 'imperial' },
+]
+
 export default function Step2EnergyPrices({ data, onUpdate, onNext, onBack }) {
   const imperial = data.unitSystem === 'imperial'
 
   const canContinue =
     data.fuelPrice !== '' && parseFloat(data.fuelPrice) > 0
+
+  function handleMarketChange(market) {
+    const m = MARKETS.find((x) => x.value === market)
+    // Switch market and auto-set the matching unit system
+    onUpdate({ market, unitSystem: m.unitSystem })
+  }
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
@@ -47,13 +58,36 @@ export default function Step2EnergyPrices({ data, onUpdate, onNext, onBack }) {
         Enter the current prices you pay for fuel and electricity.
       </p>
 
+      {/* Market selector */}
+      <div className="mb-5">
+        <label className="block text-sm font-medium text-gray-700 mb-2">Your Market</label>
+        <div className="inline-flex rounded-lg border border-gray-300 overflow-hidden">
+          {MARKETS.map((m) => (
+            <button
+              key={m.value}
+              onClick={() => handleMarketChange(m.value)}
+              className={`px-4 py-2 text-sm font-medium transition-colors cursor-pointer
+                ${data.market === m.value
+                  ? 'bg-green-600 text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'}
+              `}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-xs text-gray-400">
+          Filters the vehicle list to models available in your market.
+        </p>
+      </div>
+
       {/* Unit system toggle */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">Unit System</label>
         <div className="inline-flex rounded-lg border border-gray-300 overflow-hidden">
           {[
-            { value: 'metric', label: '🇨🇦 Metric (L, km)' },
-            { value: 'imperial', label: '🇺🇸 Imperial (gal, mi)' },
+            { value: 'metric',   label: 'Metric (L, km)' },
+            { value: 'imperial', label: 'Imperial (gal, mi)' },
           ].map((opt) => (
             <button
               key={opt.value}
