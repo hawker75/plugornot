@@ -11,6 +11,67 @@ const COMPARISON_LABELS = {
   biweekly: 'Bi-weekly Payments',
 }
 
+// ── Fuel economy helpers ──────────────────────────────────────
+
+function fmtL(val) {
+  const n = parseFloat(val)
+  return isNaN(n) ? null : n.toFixed(1)
+}
+
+function fmtKwh(val) {
+  const n = parseFloat(val)
+  return isNaN(n) ? null : n.toFixed(1)
+}
+
+function fmtMpg(val) {
+  const n = parseFloat(val)
+  return isNaN(n) ? null : Math.round(n)
+}
+
+// Returns { label, city, hwy, unit } or null if no data
+function getFuelEconomy(vehicle, unitSystem) {
+  const imperial = unitSystem === 'imperial'
+  const ft = vehicle.fuel_type
+
+  if (ft === 'electric') {
+    if (imperial) {
+      const c = fmtKwh(vehicle.city_kwh_per_100mi)
+      const h = fmtKwh(vehicle.highway_kwh_per_100mi)
+      if (!c && !h) return null
+      return { label: 'Efficiency', city: c, hwy: h, unit: 'kWh/100mi' }
+    }
+    const c = fmtKwh(vehicle.city_kwh_per_100km)
+    const h = fmtKwh(vehicle.highway_kwh_per_100km)
+    if (!c && !h) return null
+    return { label: 'Efficiency', city: c, hwy: h, unit: 'kWh/100km' }
+  }
+
+  // gasoline | hybrid | phev | diesel
+  const label = ft === 'phev' ? 'Gas-mode economy' : 'Fuel economy'
+  if (imperial) {
+    const c = fmtMpg(vehicle.city_mpg)
+    const h = fmtMpg(vehicle.highway_mpg)
+    if (!c && !h) return null
+    return { label, city: c, hwy: h, unit: 'mpg' }
+  }
+  const c = fmtL(vehicle.city_l100km)
+  const h = fmtL(vehicle.highway_l100km)
+  if (!c && !h) return null
+  return { label, city: c, hwy: h, unit: 'L/100km' }
+}
+
+// Returns display string for EV / PHEV range, or null
+function getEVRange(vehicle, unitSystem) {
+  const rangeKm = parseFloat(vehicle.electric_range_km)
+  if (!rangeKm || isNaN(rangeKm)) return null
+  const imperial = unitSystem === 'imperial'
+  if (imperial) {
+    const mi = Math.round(rangeKm * 0.621371)
+    return { label: vehicle.fuel_type === 'phev' ? 'EV-only range' : 'Range', value: `${mi} mi` }
+  }
+  return { label: vehicle.fuel_type === 'phev' ? 'EV-only range' : 'Range', value: `${Math.round(rangeKm)} km` }
+}
+
 export default function Step5Results({ data, onBack, onReset }) {
   const { vehicles, activeVehicleCount, comparisonType, unitSystem } = data
   const activeVehicles = vehicles
@@ -65,6 +126,8 @@ export default function Step5Results({ data, onBack, onReset }) {
           const s = summaries[i]
           const color = VEHICLE_COLORS[i]
           const isBest = i === bestIdx && activeVehicles.length > 1
+          const fuelEcon = getFuelEconomy(vehicle, unitSystem)
+          const evRange  = getEVRange(vehicle, unitSystem)
 
           return (
             <div
@@ -98,6 +161,29 @@ export default function Step5Results({ data, onBack, onReset }) {
                   </span>
                 )}
               </div>
+
+              {/* Vehicle specs */}
+              {(fuelEcon || evRange) && (
+                <div className="mb-3 pb-3 border-b border-gray-100 space-y-1.5">
+                  {fuelEcon && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">{fuelEcon.label}</span>
+                      <span className="font-medium text-gray-700">
+                        {fuelEcon.city && fuelEcon.hwy
+                          ? `${fuelEcon.city} city · ${fuelEcon.hwy} hwy`
+                          : fuelEcon.city || fuelEcon.hwy}{' '}
+                        <span className="text-gray-400">{fuelEcon.unit}</span>
+                      </span>
+                    </div>
+                  )}
+                  {evRange && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">{evRange.label}</span>
+                      <span className="font-medium text-green-700">{evRange.value}</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Stats */}
               <div className="space-y-2 text-sm">
