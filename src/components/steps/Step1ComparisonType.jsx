@@ -58,7 +58,18 @@ export default function Step1ComparisonType({ data, onUpdate, onNext }) {
         })}
       </div>
 
-      <div className="mt-8 flex justify-end">
+      {/* Lease disclaimer — shown when a payment option is selected */}
+      {data.comparisonType && data.comparisonType !== 'cash' && (
+        <div className="mt-5 bg-amber-50 border border-amber-100 rounded-lg p-3 text-xs text-amber-800">
+          <strong>Not a lease calculator.</strong> Monthly and bi-weekly payment options model
+          a standard <strong>financing loan</strong> — at the end of the term you own the vehicle
+          outright. Leases work differently (residual value, mileage limits, end-of-term buyout)
+          and are not supported. If you're comparing a lease, use <strong>Cash Purchase</strong> and
+          enter the total cost of the vehicle instead.
+        </div>
+      )}
+
+      <div className="mt-5 flex justify-end">
         <button
           onClick={onNext}
           disabled={!data.comparisonType}
