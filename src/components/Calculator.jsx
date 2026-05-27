@@ -36,7 +36,9 @@ const EMPTY_VEHICLE = (slotId) => ({
 
 const INITIAL_STATE = {
   // Step 1
-  comparisonType: null,
+  comparisonType: null,       // 'cash' | 'finance' | 'lease'
+  paymentFrequency: 'monthly', // 'monthly' | 'biweekly'  — used for finance and lease
+  leaseTerm: 36,              // months (24 | 36 | 48 | 60) — used for lease only
   // Step 2
   market: 'CA',        // 'CA' | 'US' — filters vehicle dropdown to local market
   unitSystem: 'metric',

@@ -10,7 +10,8 @@ export const VEHICLE_COLORS = [
 
 const TERM_OPTIONS = [1, 2, 3, 4, 5, 6, 7]
 
-function PriceSection({ comparisonType, vehicle, onChange }) {
+function PriceSection({ comparisonType, paymentFrequency, vehicle, onChange }) {
+  // ── Cash ────────────────────────────────────────────────────────────────────
   if (comparisonType === 'cash') {
     return (
       <div>
@@ -32,8 +33,34 @@ function PriceSection({ comparisonType, vehicle, onChange }) {
     )
   }
 
-  const label = comparisonType === 'monthly' ? 'Monthly Payment ($)' : 'Bi-weekly Payment ($)'
-  const placeholder = comparisonType === 'monthly' ? '650' : '300'
+  // ── Lease — payment only, term is global from Step 1 ────────────────────────
+  if (comparisonType === 'lease') {
+    const label       = paymentFrequency === 'biweekly' ? 'Bi-weekly Lease Payment ($)' : 'Monthly Lease Payment ($)'
+    const placeholder = paymentFrequency === 'biweekly' ? '300' : '599'
+    return (
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+        <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-green-500">
+          <span className="px-3 py-2 bg-gray-50 text-gray-500 text-sm border-r border-gray-300">$</span>
+          <input
+            type="number"
+            min="0"
+            value={vehicle.paymentAmount}
+            onChange={(e) => onChange({ paymentAmount: e.target.value })}
+            placeholder={placeholder}
+            className="flex-1 px-3 py-2 text-sm outline-none"
+          />
+        </div>
+        <p className="mt-1.5 text-xs text-gray-400">
+          Lease term is set in Step 1 and applies to all vehicles. Rate and residual are built into your quoted payment.
+        </p>
+      </div>
+    )
+  }
+
+  // ── Finance — payment + term + interest rate ────────────────────────────────
+  const label       = paymentFrequency === 'biweekly' ? 'Bi-weekly Payment ($)' : 'Monthly Payment ($)'
+  const placeholder = paymentFrequency === 'biweekly' ? '300' : '650'
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -53,7 +80,7 @@ function PriceSection({ comparisonType, vehicle, onChange }) {
         </div>
       </div>
 
-      {/* Term */}
+      {/* Loan term */}
       <div>
         <label className="block text-xs font-medium text-gray-500 mb-1">Loan Term</label>
         <select
@@ -99,7 +126,7 @@ function vehicleIsComplete(vehicle, comparisonType) {
 }
 
 export default function Step4Vehicles({ data, onUpdate, onNext, onBack }) {
-  const { comparisonType, vehicles, activeVehicleCount, market } = data
+  const { comparisonType, paymentFrequency, leaseTerm, vehicles, activeVehicleCount, market } = data
 
   function updateVehicle(slotId, changes) {
     const updated = vehicles.map((v) =>
@@ -187,11 +214,13 @@ export default function Step4Vehicles({ data, onUpdate, onNext, onBack }) {
             {/* PHEV note */}
             {vehicle.fuel_type === 'phev' && (
               <div className="mt-3 bg-blue-50 border border-blue-100 rounded-lg p-2.5 text-xs text-blue-800">
-                🔌 <strong>Plug-in Hybrid:</strong> Fuel cost is modelled using your commute distance
-                and charging frequency from Step 3.
-                {vehicle.electric_range_km
-                  ? <span> Electric range: <strong>{vehicle.electric_range_km} km</strong>.</span>
-                  : null}
+                🔌 <strong>Plug-in Hybrid:</strong> Fuel cost is split between electricity and gasoline
+                based on your commute vs. the vehicle's EV range.
+                {vehicle.electric_range_km ? (
+                  <span> EV range: <strong>{vehicle.electric_range_km} km</strong>
+                    {' — '}commutes within this range cost electricity only; longer commutes add a gas component.
+                  </span>
+                ) : null}
               </div>
             )}
 
@@ -200,6 +229,8 @@ export default function Step4Vehicles({ data, onUpdate, onNext, onBack }) {
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <PriceSection
                   comparisonType={comparisonType}
+                  paymentFrequency={paymentFrequency}
+                  leaseTerm={leaseTerm}
                   vehicle={vehicle}
                   onChange={(changes) => updateVehicle(vehicle.slotId, changes)}
                 />

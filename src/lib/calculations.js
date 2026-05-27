@@ -17,7 +17,14 @@ export function getAnnualDistance(amount, period, unitSystem) {
 //   • daily commute distance vs. vehicle electric range
 //   • how often the driver charges
 //
-// Returns a detail object so the results screen can show the breakdown.
+// Key formula logic:
+//   - If daily round-trip ≤ EV range  → 100% of commute on electricity
+//   - If daily round-trip > EV range  → EV range on electricity, overage on gasoline
+//   - All non-commute driving is modelled on gasoline
+//   - Charging frequency scales down EV usage (e.g. charging 75% of days = 75% of EV km)
+//
+// If no commute is entered, we estimate daily driving from annual total / 365
+// so PHEVs still get realistic EV credit without requiring a commute entry.
 
 export function calculatePHEVDetails(vehicle, settings) {
   const {
@@ -27,7 +34,7 @@ export function calculatePHEVDetails(vehicle, settings) {
     electricityPrice,
     distanceAmount,
     distancePeriod,
-    dailyCommuteKm,   // one-way commute in user's unit system
+    dailyCommuteKm,     // one-way commute in user's unit system (optional)
     chargingFrequency,
   } = settings
 
@@ -44,7 +51,17 @@ export function calculatePHEVDetails(vehicle, settings) {
   if (unitSystem === 'imperial') commuteOneWayKm = commuteOneWayKm * 1.60934
   const dailyRoundTripKm = commuteOneWayKm * 2
 
-  // Charging frequency → fraction of days the battery is full
+  // If no commute was entered, fall back to estimated daily distance.
+  // This ensures PHEVs still receive realistic EV credit even when the
+  // commute field is left blank.
+  const effectiveDailyKm =
+    dailyRoundTripKm > 0
+      ? dailyRoundTripKm
+      : annualKm > 0
+        ? annualKm / 365
+        : 0
+
+  // Charging frequency → fraction of days the battery starts full
   const chargingFactors = {
     daily:        1.00,
     most_days:    0.75,
@@ -53,12 +70,15 @@ export function calculatePHEVDetails(vehicle, settings) {
   }
   const cf = chargingFactors[chargingFrequency] || 1.0
 
-  // How many EV-mode km are driven each day
-  //   = (the part of the commute that fits within the electric range)
-  //     × (fraction of days the driver actually charges)
+  // EV-mode km per day:
+  //   = the portion of daily driving that fits within the battery range
+  //     × the fraction of days the driver actually charges
+  //
+  // If commute ≤ range  → full daily distance is on electricity
+  // If commute > range  → only 'range' km are electric; the overage is gas
   const evKmPerDay =
-    electricRangeKm > 0 && dailyRoundTripKm > 0
-      ? Math.min(dailyRoundTripKm, electricRangeKm) * cf
+    electricRangeKm > 0 && effectiveDailyKm > 0
+      ? Math.min(effectiveDailyKm, electricRangeKm) * cf
       : 0
 
   // Annual breakdown (EV km cannot exceed total annual driving)
@@ -151,36 +171,73 @@ export function calculateAnnualFuelCost(vehicle, settings) {
   return (annualKm / 100) * effL * fp
 }
 
-// ─── Build Recharts-ready data array (year 0 → 10) ──────────────────────────
+// ─── Build Recharts-ready data array ─────────────────────────────────────────
+//
+// Cash / Finance:  year 0 → 10  (yearly points)
+// Lease:           year 0 → leaseTerm/12  (yearly points, capped at term end)
+//
+// Lease term options are always multiples of 12 months (24/36/48/60),
+// so yearly granularity is exact.
 
 export function buildChartData(vehicles, settings) {
   const active = vehicles.filter((v) => v.id)
   if (!active.length) return []
 
-  return Array.from({ length: 11 }, (_, year) => {
+  const { comparisonType, paymentFrequency, leaseTerm } = settings
+  const isLease = comparisonType === 'lease'
+
+  const totalYears = isLease ? (leaseTerm || 36) / 12 : 10
+  const points = Array.from({ length: totalYears + 1 }, (_, i) => i)
+
+  return points.map((year) => {
     const point = { year }
+
     active.forEach((vehicle, idx) => {
       const annualFuel = calculateAnnualFuelCost(vehicle, settings)
       const fuel = year * annualFuel
       let vc = 0
 
-      if (settings.comparisonType === 'cash') {
+      if (comparisonType === 'cash') {
         vc = parseFloat(vehicle.price) || 0
-      } else if (settings.comparisonType === 'monthly') {
-        const cap = (parseInt(vehicle.termYears) || 5) * 12
-        vc = Math.min(year * 12, cap) * (parseFloat(vehicle.paymentAmount) || 0)
-      } else if (settings.comparisonType === 'biweekly') {
-        const cap = (parseInt(vehicle.termYears) || 5) * 26
-        vc = Math.min(year * 26, cap) * (parseFloat(vehicle.paymentAmount) || 0)
+
+      } else if (comparisonType === 'finance') {
+        const termCap = parseInt(vehicle.termYears) || 5
+        if (paymentFrequency === 'biweekly') {
+          const maxPayments = termCap * 26
+          vc = Math.min(year * 26, maxPayments) * (parseFloat(vehicle.paymentAmount) || 0)
+        } else {
+          const maxPayments = termCap * 12
+          vc = Math.min(year * 12, maxPayments) * (parseFloat(vehicle.paymentAmount) || 0)
+        }
+
+      } else if (comparisonType === 'lease') {
+        const lt = leaseTerm || 36
+        if (paymentFrequency === 'biweekly') {
+          // Total biweekly payments in the lease = leaseTerm months × (26/12)
+          const totalPayments = Math.round(lt * 26 / 12)
+          vc = Math.min(year * 26, totalPayments) * (parseFloat(vehicle.paymentAmount) || 0)
+        } else {
+          // Monthly: total payments = leaseTerm months
+          vc = Math.min(year * 12, lt) * (parseFloat(vehicle.paymentAmount) || 0)
+        }
       }
 
       point[`v${idx}`] = Math.round(vc + fuel)
     })
+
     return point
   })
 }
 
 // ─── Summary stats for results panel ────────────────────────────────────────
+//
+// Returns period-aware totals:
+//   periodYears       — comparison horizon (10 for cash/finance, leaseTerm/12 for lease)
+//   totalVehicleCost  — all payments / purchase price over the period
+//   periodFuel        — total fuel/energy cost over the period
+//   periodTotal       — totalVehicleCost + periodFuel  (the "headline" number)
+//
+// PHEV-specific fields: evFraction, evCost, gasCost (null for non-PHEVs)
 
 export function getVehicleSummary(vehicle, settings) {
   let annualFuel
@@ -198,26 +255,44 @@ export function getVehicleSummary(vehicle, settings) {
     annualFuel = calculateAnnualFuelCost(vehicle, settings)
   }
 
+  const { comparisonType, paymentFrequency, leaseTerm } = settings
+  const lt = leaseTerm || 36
+
   let totalVehicleCost = 0
-  if (settings.comparisonType === 'cash') {
+  let periodYears = 10
+
+  if (comparisonType === 'cash') {
     totalVehicleCost = parseFloat(vehicle.price) || 0
-  } else if (settings.comparisonType === 'monthly') {
-    totalVehicleCost =
-      (parseFloat(vehicle.paymentAmount) || 0) *
-      (parseInt(vehicle.termYears) || 5) *
-      12
-  } else if (settings.comparisonType === 'biweekly') {
-    totalVehicleCost =
-      (parseFloat(vehicle.paymentAmount) || 0) *
-      (parseInt(vehicle.termYears) || 5) *
-      26
+    periodYears = 10
+
+  } else if (comparisonType === 'finance') {
+    const years = parseInt(vehicle.termYears) || 5
+    if (paymentFrequency === 'biweekly') {
+      totalVehicleCost = (parseFloat(vehicle.paymentAmount) || 0) * years * 26
+    } else {
+      totalVehicleCost = (parseFloat(vehicle.paymentAmount) || 0) * years * 12
+    }
+    periodYears = 10
+
+  } else if (comparisonType === 'lease') {
+    if (paymentFrequency === 'biweekly') {
+      const totalPayments = Math.round(lt * 26 / 12)
+      totalVehicleCost = (parseFloat(vehicle.paymentAmount) || 0) * totalPayments
+    } else {
+      totalVehicleCost = (parseFloat(vehicle.paymentAmount) || 0) * lt
+    }
+    periodYears = lt / 12
   }
+
+  const periodFuel  = annualFuel * periodYears
+  const periodTotal = totalVehicleCost + periodFuel
 
   return {
     annualFuel,
     totalVehicleCost,
-    tenYearFuel:  annualFuel * 10,
-    tenYearTotal: totalVehicleCost + annualFuel * 10,
+    periodFuel,
+    periodTotal,
+    periodYears,
     evFraction,
     evCost,
     gasCost,

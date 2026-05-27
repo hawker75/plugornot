@@ -5,13 +5,7 @@ import CostChart from '@/components/CostChart'
 import { buildChartData, getVehicleSummary, fmt } from '@/lib/calculations'
 import { VEHICLE_COLORS } from './Step4Vehicles'
 
-const COMPARISON_LABELS = {
-  cash: 'Cash Purchase',
-  monthly: 'Monthly Payments',
-  biweekly: 'Bi-weekly Payments',
-}
-
-// ── Fuel economy helpers ──────────────────────────────────────
+// ── Fuel economy helpers ──────────────────────────────────────────────────────
 
 function fmtL(val) {
   const n = parseFloat(val)
@@ -69,11 +63,22 @@ function getEVRange(vehicle, unitSystem) {
     const mi = Math.round(rangeKm * 0.621371)
     return { label: vehicle.fuel_type === 'phev' ? 'EV-only range' : 'Range', value: `${mi} mi` }
   }
-  return { label: vehicle.fuel_type === 'phev' ? 'EV-only range' : 'Range', value: `${Math.round(rangeKm)} km` }
+  return {
+    label: vehicle.fuel_type === 'phev' ? 'EV-only range' : 'Range',
+    value: `${Math.round(rangeKm)} km`,
+  }
 }
 
 export default function Step5Results({ data, onBack, onReset }) {
-  const { vehicles, activeVehicleCount, comparisonType, unitSystem } = data
+  const {
+    vehicles,
+    activeVehicleCount,
+    comparisonType,
+    paymentFrequency,
+    leaseTerm,
+    unitSystem,
+  } = data
+
   const activeVehicles = vehicles
     .slice(0, activeVehicleCount)
     .filter((v) => v.id)
@@ -85,11 +90,43 @@ export default function Step5Results({ data, onBack, onReset }) {
     [data]
   )
 
-  // Find the vehicle with lowest 10-year total
+  // Find the vehicle with the lowest total cost over the comparison period
   const bestIdx = summaries.reduce(
-    (best, s, i) => (s.tenYearTotal < summaries[best].tenYearTotal ? i : best),
+    (best, s, i) => (s.periodTotal < summaries[best].periodTotal ? i : best),
     0
   )
+
+  // ── Period-aware display helpers ──────────────────────────────────────────
+  const isLease   = comparisonType === 'lease'
+  const isFinance = comparisonType === 'finance'
+  const isCash    = comparisonType === 'cash'
+  const freqLabel = paymentFrequency === 'biweekly' ? 'Bi-weekly' : 'Monthly'
+
+  const chartTitle = isLease
+    ? `${leaseTerm}-Month Cost of Lease`
+    : '10-Year Cost of Ownership'
+
+  const chartDesc = isLease
+    ? `Cumulative spending including lease payments and fuel/energy over your ${leaseTerm}-month term.`
+    : 'Cumulative spending including vehicle cost and fuel/energy. Lines flatten after loans are paid off.'
+
+  const badgeLabel = isLease
+    ? `${leaseTerm}-Month Lease · ${freqLabel}`
+    : isFinance
+    ? `Finance · ${freqLabel}`
+    : 'Cash Purchase'
+
+  const periodFuelLabel = isLease
+    ? `${leaseTerm}-mo fuel cost`
+    : '10-yr fuel cost'
+
+  const periodTotalLabel = isLease ? 'Lease Total' : '10-yr Total'
+
+  const vehicleCostLabel = isCash
+    ? 'Purchase price'
+    : isLease
+    ? 'Total lease payments'
+    : 'Total loan payments'
 
   return (
     <div className="space-y-6">
@@ -97,16 +134,14 @@ export default function Step5Results({ data, onBack, onReset }) {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-1">
           <h2 className="text-xl font-bold text-gray-900">
-            10-Year Cost of Ownership
+            {chartTitle}
           </h2>
           <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-            {COMPARISON_LABELS[comparisonType]} ·{' '}
-            {unitSystem === 'imperial' ? 'Imperial' : 'Metric'}
+            {badgeLabel} · {unitSystem === 'imperial' ? 'Imperial' : 'Metric'}
           </span>
         </div>
         <p className="text-gray-500 text-sm mb-6">
-          Cumulative spending including vehicle cost and fuel/energy. Lines
-          flatten after loans are paid off.
+          {chartDesc}
         </p>
 
         <CostChart chartData={chartData} activeVehicles={activeVehicles} />
@@ -123,9 +158,9 @@ export default function Step5Results({ data, onBack, onReset }) {
         }`}
       >
         {activeVehicles.map((vehicle, i) => {
-          const s = summaries[i]
-          const color = VEHICLE_COLORS[i]
-          const isBest = i === bestIdx && activeVehicles.length > 1
+          const s       = summaries[i]
+          const color   = VEHICLE_COLORS[i]
+          const isBest  = i === bestIdx && activeVehicles.length > 1
           const fuelEcon = getFuelEconomy(vehicle, unitSystem)
           const evRange  = getEVRange(vehicle, unitSystem)
 
@@ -189,36 +224,34 @@ export default function Step5Results({ data, onBack, onReset }) {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Annual energy cost</span>
-                  <span className="font-medium text-gray-900">
-                    {fmt(s.annualFuel)}
-                  </span>
+                  <span className="font-medium text-gray-900">{fmt(s.annualFuel)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">
-                    {comparisonType === 'cash' ? 'Purchase price' : 'Total payments'}
-                  </span>
-                  <span className="font-medium text-gray-900">
-                    {fmt(s.totalVehicleCost)}
-                  </span>
+                  <span className="text-gray-500">{vehicleCostLabel}</span>
+                  <span className="font-medium text-gray-900">{fmt(s.totalVehicleCost)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">10-yr fuel cost</span>
-                  <span className="font-medium text-gray-900">
-                    {fmt(s.tenYearFuel)}
-                  </span>
+                  <span className="text-gray-500">{periodFuelLabel}</span>
+                  <span className="font-medium text-gray-900">{fmt(s.periodFuel)}</span>
                 </div>
                 <div className="flex justify-between border-t border-gray-100 pt-2">
-                  <span className="font-semibold text-gray-800">10-yr Total</span>
+                  <span className="font-semibold text-gray-800">{periodTotalLabel}</span>
                   <span className={`font-bold text-lg ${color.label}`}>
-                    {fmt(s.tenYearTotal)}
+                    {fmt(s.periodTotal)}
                   </span>
                 </div>
 
-                {/* Interest info */}
-                {comparisonType !== 'cash' && vehicle.interestRate && (
+                {/* Finance: show interest rate + term */}
+                {isFinance && vehicle.interestRate && (
                   <p className="text-xs text-gray-400 pt-1">
-                    {vehicle.interestRate}% annual rate ·{' '}
-                    {vehicle.termYears}-yr term
+                    {vehicle.interestRate}% annual rate · {vehicle.termYears}-yr term
+                  </p>
+                )}
+
+                {/* Lease: confirm the term */}
+                {isLease && (
+                  <p className="text-xs text-gray-400 pt-1">
+                    {leaseTerm}-month term · rate built into quoted payment
                   </p>
                 )}
 
@@ -227,17 +260,17 @@ export default function Step5Results({ data, onBack, onReset }) {
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full font-medium
                       ${vehicle.fuel_type === 'electric' ? 'bg-green-100 text-green-700' : ''}
-                      ${vehicle.fuel_type === 'phev' ? 'bg-blue-100 text-blue-700' : ''}
-                      ${vehicle.fuel_type === 'hybrid' ? 'bg-teal-100 text-teal-700' : ''}
+                      ${vehicle.fuel_type === 'phev'     ? 'bg-blue-100 text-blue-700'   : ''}
+                      ${vehicle.fuel_type === 'hybrid'   ? 'bg-teal-100 text-teal-700'   : ''}
                       ${vehicle.fuel_type === 'gasoline' ? 'bg-orange-100 text-orange-700' : ''}
-                      ${vehicle.fuel_type === 'diesel' ? 'bg-yellow-100 text-yellow-700' : ''}
+                      ${vehicle.fuel_type === 'diesel'   ? 'bg-yellow-100 text-yellow-700' : ''}
                     `}
                   >
                     {vehicle.fuel_type === 'electric' && '⚡ Electric'}
-                    {vehicle.fuel_type === 'phev' && '🔌 Plug-in Hybrid'}
-                    {vehicle.fuel_type === 'hybrid' && '♻️ Hybrid'}
+                    {vehicle.fuel_type === 'phev'     && '🔌 Plug-in Hybrid'}
+                    {vehicle.fuel_type === 'hybrid'   && '♻️ Hybrid'}
                     {vehicle.fuel_type === 'gasoline' && '⛽ Gasoline'}
-                    {vehicle.fuel_type === 'diesel' && '🛢️ Diesel'}
+                    {vehicle.fuel_type === 'diesel'   && '🛢️ Diesel'}
                   </span>
                 </div>
 
@@ -271,7 +304,7 @@ export default function Step5Results({ data, onBack, onReset }) {
                       </>
                     ) : (
                       <p className="text-xs text-gray-400">
-                        Enter a daily commute in Step 3 to see your EV/gas split.
+                        Running on gasoline — charge more often or enter a commute in Step 3 to model EV savings.
                       </p>
                     )}
                   </div>
@@ -284,10 +317,16 @@ export default function Step5Results({ data, onBack, onReset }) {
 
       {/* Disclaimer */}
       <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs text-gray-500">
-        <strong>Assumptions:</strong> Fuel/energy prices held constant over 10 years. Fuel economy
-        figures are posted estimates — real-world results vary. For plug-in hybrids, EV usage is
-        estimated from your commute distance and charging frequency; non-commute driving is assumed
-        to run on gasoline. Maintenance, insurance, and depreciation are not included.
+        <strong>Assumptions:</strong>{' '}
+        {isLease
+          ? `Fuel/energy prices held constant over the ${leaseTerm}-month lease term. Lease total reflects payments only — no ownership value at term end.`
+          : 'Fuel/energy prices held constant over 10 years.'
+        }{' '}
+        Fuel economy figures are posted estimates — real-world results vary.
+        For plug-in hybrids, EV usage is based on your commute vs. the vehicle's battery range:
+        commutes within range use electricity only; longer commutes add a proportional gas cost.
+        Non-commute driving is modelled on gasoline.
+        Maintenance, insurance, and depreciation are not included.
       </div>
 
       {/* Actions */}
