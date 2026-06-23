@@ -31,7 +31,7 @@ const EMPTY_VEHICLE = (slotId) => ({
   price: '',
   paymentAmount: '',
   termYears: '5',
-  interestRate: '',
+  interestRate: '6.99',
 })
 
 const INITIAL_STATE = {

@@ -99,7 +99,7 @@ function PriceSection({ comparisonType, paymentFrequency, vehicle, onChange }) {
       <div>
         <label className="block text-xs font-medium text-gray-500 mb-1">
           Interest Rate{' '}
-          <span className="text-gray-400 font-normal">(optional)</span>
+          <span className="text-gray-400 font-normal">(edit if you have a quote)</span>
         </label>
         <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-green-500">
           <input
@@ -193,7 +193,7 @@ export default function Step4Vehicles({ data, onUpdate, onNext, onBack }) {
                       city_kwh_per_100mi: null, highway_kwh_per_100mi: null,
                       city_kwh_per_100km: null, highway_kwh_per_100km: null,
                       electric_range_km: null, drivetrain: null,
-                      price: '', paymentAmount: '', termYears: '5', interestRate: '',
+                      price: '', paymentAmount: '', termYears: '5', interestRate: '6.99',
                     })
                     onUpdate({ activeVehicleCount: activeVehicleCount - 1 })
                   }}
