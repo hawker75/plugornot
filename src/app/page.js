@@ -1,8 +1,16 @@
-import Calculator from '@/components/Calculator'
-
 export default function Home() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+      {/* Paused notice */}
+      <div className="mb-8 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 text-center">
+        <p className="font-semibold text-amber-900">
+          This website is currently paused for calculations.
+        </p>
+        <p className="text-sm text-amber-800 mt-1">
+          It will return in the near future, bigger and better.
+        </p>
+      </div>
+
       {/* Hero */}
       <div className="text-center mb-10">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -14,7 +22,9 @@ export default function Home() {
         </p>
       </div>
 
-      <Calculator />
+      {/* Calculator hidden while the Supabase project is paused (its
+          dropdowns load from Supabase). Restore with:
+          import Calculator from '@/components/Calculator' and <Calculator /> */}
     </div>
   )
 }
