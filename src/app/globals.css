@@ -43,3 +43,47 @@ input[type="range"]::-moz-range-thumb {
   border: 2px solid #fff;
   box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
+
+/* Floating background icons (src/components/FloatingIcons.jsx).
+   The outer span rises up the screen; the inner svg sways and turns on a
+   different timer, so the motion never looks like a straight line. */
+.floating-icon {
+  position: absolute;
+  left: var(--x);
+  top: 0;
+  width: var(--size);
+  height: var(--size);
+  opacity: 0;
+  animation: float-rise var(--dur) linear var(--delay) infinite;
+  will-change: transform, opacity;
+}
+
+.floating-icon svg {
+  width: 100%;
+  height: 100%;
+  animation: float-sway calc(var(--dur) / 3) ease-in-out var(--delay) infinite alternate;
+}
+
+@keyframes float-rise {
+  0%   { transform: translateY(110vh); opacity: 0; }
+  10%  { opacity: 0.45; }
+  85%  { opacity: 0.45; }
+  100% { transform: translateY(-15vh); opacity: 0; }
+}
+
+@keyframes float-sway {
+  from { transform: translateX(calc(var(--drift) * -1)) rotate(calc(var(--spin) * -0.5)); }
+  to   { transform: translateX(var(--drift)) rotate(calc(var(--spin) * 0.5)); }
+}
+
+/* Visitors who ask for less motion get the icons resting in place. */
+@media (prefers-reduced-motion: reduce) {
+  .floating-icon {
+    animation: none;
+    opacity: 0.35;
+    transform: translateY(var(--y));
+  }
+  .floating-icon svg {
+    animation: none;
+  }
+}

@@ -1,6 +1,10 @@
+import FloatingIcons from '@/components/FloatingIcons'
+
 export default function Home() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+      <FloatingIcons />
+
       {/* Paused notice */}
       <div className="mb-8 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 text-center">
         <p className="font-semibold text-amber-900">
